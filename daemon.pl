@@ -8,26 +8,28 @@ use threads::shared;
 use Thread::Semaphore; 
 use File::Basename;
 my $semaphore = new Thread::Semaphore;
-#CONFIGURATION SECTION
+
+### CONFIGURATION SECTION
 my @allowedhosts = ('127.0.0.1', '10.0.0.1');
-my $LOGFILE = "/var/log/policyd.log";
+my $LOGFILE = "/var/log/ratelimit-policyd.log";
+my $PIDFILE = "/var/run/ratelimit-policyd.pid";
 chomp( my $vhost_dir = `pwd`);
-my $port = 381;
-my $listen_address = '0.0.0.0';
-my $s_key_type = 'domain'; #domain or email
-my $dsn = "DBI:mysql:database:127.0.0.1";
-my $db_user = '******';
-my $db_passwd = '**********';
-my $db_table = 'domains';
-my $db_quotacol = 'messagequota';
-my $db_tallycol = 'messagetally';
-my $db_timecol = 'timestamp';
-my $db_wherecol = 'name';
-my $deltaconf = 'hourly'; #hourly, daily, weekly, monthly
-my $sql_getquota = "SELECT $db_quotacol, $db_tallycol, $db_timecol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
-#my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = ?, $db_timecol = ? WHERE $db_wherecol = ?";
+my $port            = 10032;
+my $listen_address  = '127.0.0.1'; # or '0.0.0.0'
+my $s_key_type      = 'email'; # domain or email
+my $dsn             = "DBI:mysql:policyd:127.0.0.1";
+my $db_user         = 'policyd';
+my $db_passwd       = '************';
+my $db_table        = 'ratelimit';
+my $db_quotacol     = 'quota';
+my $db_tallycol     = 'used';
+my $db_timecol      = 'expiry';
+my $db_wherecol     = 'sender';
+my $deltaconf       = 'daily'; # hourly|daily|weekly|monthly
+my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_timecol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
 my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_timecol = ? WHERE $db_wherecol = ?";
-#END OF CONFIGURATION SECTION
+### END OF CONFIGURATION SECTION
+
 $0=join(' ',($0,@ARGV));
 
 if($ARGV[0] eq "printshm"){
@@ -288,7 +290,7 @@ sub print_cache {
 sub daemonize {
 	my ($i,$pid);
 	my $mask = umask 0027;
-	print "Keedra SMTP Policy Daemon. Logging to $LOGFILE\n";
+	print "SMTP Policy Daemon. Logging to $LOGFILE\n";
 	#Should i delete this??
 	#$ENV{PATH}="/bin:/usr/bin";
 	#chdir("/");
@@ -304,7 +306,7 @@ sub daemonize {
 	open LOG, ">>$LOGFILE" or die "Unable to open $LOGFILE: $!\n";
 	select((select(LOG), $|=1)[0]);
 	open STDERR, ">>$LOGFILE" or die "Unable to redirect STDERR to STDOUT: $!\n";
-	open PID, ">/var/run/".basename($0).".pid" or die $!;
+	open PID, ">$PIDFILE" or die $!;
 	print PID $$."\n";
 	close PID;
 	umask $mask;
