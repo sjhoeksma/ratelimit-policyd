@@ -26,8 +26,10 @@ my $db_tallycol     = 'used';
 my $db_timecol      = 'expiry';
 my $db_wherecol     = 'sender';
 my $deltaconf       = 'daily'; # hourly|daily|weekly|monthly
+my $defaultquota    = 1000;
 my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_timecol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
 my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_timecol = ? WHERE $db_wherecol = ?";
+my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_timecol) VALUES (?, ?, ?, ?)";
 ### END OF CONFIGURATION SECTION
 
 $0=join(' ',($0,@ARGV));
@@ -232,6 +234,16 @@ sub handle_req {
 			$dbh->disconnect;
 		}else{
 			$sql_query->finish();
+			$quotahash{$skey} = &share({});
+			$quotahash{$skey}{'quota'} = $defaultquota;
+			$quotahash{$skey}{'tally'} = 0;
+			$quotahash{$skey}{'sum'} = 0;
+			$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
+			$sql_query = $dbh->prepare($sql_insertquota);
+			logger("Inserting $skey, $defaultquota, $recipient_count, ".$quotahash{$skey}{'expire'});
+			$sql_query->execute($skey, $defaultquota, $recipient_count, $quotahash{$skey}{'expire'})
+				or logger("Query error: ". $sql_query->errstr);
+			$sql_query->finish();
 			$dbh->disconnect;
 			return "dunno";
 		}
@@ -242,7 +254,7 @@ sub handle_req {
 		$quotahash{$skey}{'tally'} = 0;
 		$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
 		my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
-	        my $sql_query = $dbh->prepare($sql_updatequota);
+		my $sql_query = $dbh->prepare($sql_updatequota);
 		$sql_query->execute(0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
 	}
@@ -335,5 +347,3 @@ sub logger {
 	chomp($time);
 	print LOG  "$time $arg\n";
 }
-
-
