@@ -14,7 +14,7 @@
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-INSTALL_DIR=/opt/send_rate_policyd
+INSTALL_DIR=/opt/ratelimit-policyd
 DAEMON=$INSTALL_DIR/daemon.pl
 STOPSCRIPT=/usr/bin/perl
 RUNAS=postfix
