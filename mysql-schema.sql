@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS `ratelimit` (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
 COLLATE = utf8_general_ci;
+
+-- -----------------------------------------------------
+-- Table `policyd`.`view_ratelimit`
+-- -----------------------------------------------------
+CREATE OR REPLACE VIEW `view_ratelimit` AS SELECT *, FROM_UNIXTIME(`expiry`) AS `expirytime` FROM `ratelimit`;
