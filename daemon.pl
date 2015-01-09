@@ -343,7 +343,7 @@ sub calcexpire{
         if($arg eq 'monthly'){
                 $exp = mktime (0, 0, 0, 1, ++$mon, $year);
         }elsif($arg eq 'weekly'){
-                $exp = mktime (0, 0, 0, 1, $mon, $year);
+                $exp = mktime (0, 0, 0, $mday+7-$wday, $mon, $year);
         }elsif($arg eq 'daily'){
                 $exp = mktime (0, 0, 0, ++$mday, $mon, $year);
         }elsif($arg eq 'hourly'){
