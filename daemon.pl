@@ -52,7 +52,8 @@ setsockopt(SERVER, SOL_SOCKET, SO_REUSEADDR, 1) or die "setsock: $!";
 my $paddr = sockaddr_in($port, inet_aton($listen_address)); #Server sockaddr_in
 bind(SERVER, $paddr) or die "bind: $!";# bind to a port, then listen
 listen(SERVER, SOMAXCONN) or die "listen: $!";
-&daemonize;
+#&daemonize;
+&prepare_log;
 $SIG{TERM} = \&sigterm_handler;
 $SIG{HUP} = \&print_cache;
 while (1) {
@@ -297,6 +298,21 @@ sub print_cache {
 	foreach $k(keys %quotahash){
         logger("$k: $quotahash{$k}{'quota'}, $quotahash{$k}{'tally'}");
     }
+}
+
+# use this instead of daemonize if you're running the script with your own 
+# daemon starter (e.g. start-stop-daemon)
+sub prepare_log {
+	my ($i,$pid);
+	my $mask = umask 0027;
+	close STDIN;
+	setsid();
+	close STDOUT;
+	open STDIN, "/dev/null";
+	open LOG, ">>$LOGFILE" or die "Unable to open $LOGFILE: $!\n";
+	select((select(LOG), $|=1)[0]);
+	open STDERR, ">>$LOGFILE" or die "Unable to redirect STDERR to STDOUT: $!\n";
+	umask $mask;
 }
 
 sub daemonize {
