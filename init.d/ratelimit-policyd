@@ -46,7 +46,7 @@ case "$1" in
         #       option to the "reload" entry above. If not, "force-reload" is
         #       just the same as "restart".
         #
-        $0 stop && sleep 2 && $0 start
+        $0 stop && $0 start
         ;;
   *)
         N=/etc/init.d/$NAME

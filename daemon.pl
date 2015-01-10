@@ -178,16 +178,23 @@ sub start_thr {
 sub handle_req {
 	my @buf = @_;
 	my $protocol_state;
+	my $sasl_method;
 	my $sasl_username; 
 	my $recipient_count;
+	my $queue_id;
+	my $client_address;
+	my $client_name;
 	local $/ = "\n";
 	foreach $aline(@buf){
 		my @line = split("=", $aline);
 		chomp(@line);
-		#logger("Line ". $line[0] ."=". $line[1]);
+		#logger("DEBUG ". $line[0] ."=". $line[1]);
 		switch($line[0]){
 			case "protocol_state" { 
 				chomp($protocol_state = $line[1]);
+			}
+			case "sasl_method"{
+				chomp($sasl_method = $line[1]);
 			}
 			case "sasl_username"{
 				chomp($sasl_username = $line[1]);
@@ -195,12 +202,17 @@ sub handle_req {
 			case "recipient_count"{
 				chomp($recipient_count = $line[1]);
 			}
+			case "queue_id"{
+				chomp($queue_id = $line[1]);
+			}
+			case "client_address"{
+				chomp($client_address = $line[1]);
+			}
+			case "client_name"{
+				chomp($client_name = $line[1]);
+			}
 		}
 	}
-
-	#if($recipient_count <= 5){
-	#	$recipient_count = 1;
-	#}
 
 	if($protocol_state !~ m/DATA/ || $sasl_username eq "" ){
 		return "ok";
@@ -212,6 +224,11 @@ sub handle_req {
 	}else{
 		$skey = $sasl_username;
 	}
+
+	my $syslogMsg = sprintf("%s: client=%s[%s], sasl_method=%s, sasl_username=%s, recipient_count=%s, curr_count=%%s/%%s, status=%%s",
+	                        $queue_id, $client_name, $client_address, $sasl_method, $sasl_username, $recipient_count);
+	#my $syslogMsg = "$queue_id: client=$client_name[$client_address], sasl_method=$sasl_method, sasl_username=$sasl_username, recipient_count=$recipient_count";
+
 	#TODO: Maybe i should move to semaphore!!!
 	lock($lock);
 	if(!exists($quotahash{$skey})){
@@ -244,6 +261,7 @@ sub handle_req {
 				or logger("Query error: ". $sql_query->errstr);
 			$sql_query->finish();
 			$dbh->disconnect;
+			logger(sprintf($syslogMsg, $recipient_count, $defaultquota, "INSERT"));
 			return "dunno";
 		}
 	}
@@ -258,10 +276,12 @@ sub handle_req {
 			or logger("Query error: ". $sql_query->errstr);
 	}
 	if($quotahash{$skey}{'tally'} + $recipient_count > $quotahash{$skey}{'quota'}){
+		logger(sprintf($syslogMsg, $quotahash{$skey}{'tally'} + $recipient_count, $quotahash{$skey}{'quota'}, "OVER_QUOTA"));
 		return "471 $deltaconf message quota exceeded"; 
 	}
 	$quotahash{$skey}{'tally'} += $recipient_count;
 	$quotahash{$skey}{'sum'} += $recipient_count;
+	logger(sprintf($syslogMsg, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "UPDATE"));
 	return "dunno";
 }
 
