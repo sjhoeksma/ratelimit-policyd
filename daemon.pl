@@ -1,7 +1,8 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
 use Socket;
 use POSIX ;
 use DBI;
+use Sys::Syslog;
 use Switch;
 use threads;
 use threads::shared;
@@ -10,9 +11,12 @@ use File::Basename;
 my $semaphore = new Thread::Semaphore;
 
 ### CONFIGURATION SECTION
-my @allowedhosts = ('127.0.0.1', '10.0.0.1');
-my $LOGFILE = "/var/log/ratelimit-policyd.log";
-my $PIDFILE = "/var/run/ratelimit-policyd.pid";
+my @allowedhosts    = ('127.0.0.1', '10.0.0.1');
+my $LOGFILE         = "/var/log/ratelimit-policyd.log";
+my $PIDFILE         = "/var/run/ratelimit-policyd.pid";
+my $SYSLOG_IDENT    = "ratelimit-policyd";
+my $SYSLOG_LOGOPT   = "ndelay,pid";
+my $SYSLOG_FACILITY = LOG_MAIL|LOG_INFO;
 chomp( my $vhost_dir = `pwd`);
 my $port            = 10032;
 my $listen_address  = '127.0.0.1'; # or '0.0.0.0'
@@ -54,8 +58,13 @@ setsockopt(SERVER, SOL_SOCKET, SO_REUSEADDR, 1) or die "setsock: $!";
 my $paddr = sockaddr_in($port, inet_aton($listen_address)); #Server sockaddr_in
 bind(SERVER, $paddr) or die "bind: $!";# bind to a port, then listen
 listen(SERVER, SOMAXCONN) or die "listen: $!";
+
+# initialize syslog
+openlog($SYSLOG_IDENT, $SYSLOG_LOGOPT, $SYSLOG_FACILITY);
+
 #&daemonize;
 &prepare_log;
+
 $SIG{TERM} = \&sigterm_handler;
 $SIG{HUP} = \&print_cache;
 while (1) {
@@ -225,9 +234,9 @@ sub handle_req {
 		$skey = $sasl_username;
 	}
 
-	my $syslogMsg = sprintf("%s: client=%s[%s], sasl_method=%s, sasl_username=%s, recipient_count=%s, curr_count=%%s/%%s, status=%%s",
+	my $syslogMsg;
+	my $syslogMsgTpl = sprintf("%s: client=%s[%s], sasl_method=%s, sasl_username=%s, recipient_count=%s, curr_count=%%s/%%s, status=%%s",
 	                        $queue_id, $client_name, $client_address, $sasl_method, $sasl_username, $recipient_count);
-	#my $syslogMsg = "$queue_id: client=$client_name[$client_address], sasl_method=$sasl_method, sasl_username=$sasl_username, recipient_count=$recipient_count";
 
 	#TODO: Maybe i should move to semaphore!!!
 	lock($lock);
@@ -261,7 +270,9 @@ sub handle_req {
 				or logger("Query error: ". $sql_query->errstr);
 			$sql_query->finish();
 			$dbh->disconnect;
-			logger(sprintf($syslogMsg, $recipient_count, $defaultquota, "INSERT"));
+			$syslogMsg = sprintf($syslogMsgTpl, $recipient_count, $defaultquota, "INSERT");
+			logger($syslogMsg);
+			syslog(LOG_NOTICE, $syslogMsg);
 			return "dunno";
 		}
 	}
@@ -276,12 +287,16 @@ sub handle_req {
 			or logger("Query error: ". $sql_query->errstr);
 	}
 	if($quotahash{$skey}{'tally'} + $recipient_count > $quotahash{$skey}{'quota'}){
-		logger(sprintf($syslogMsg, $quotahash{$skey}{'tally'} + $recipient_count, $quotahash{$skey}{'quota'}, "OVER_QUOTA"));
+		$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'} + $recipient_count, $quotahash{$skey}{'quota'}, "OVER_QUOTA");
+		logger($syslogMsg);
+		syslog(LOG_WARNING, $syslogMsg);
 		return "471 $deltaconf message quota exceeded"; 
 	}
 	$quotahash{$skey}{'tally'} += $recipient_count;
 	$quotahash{$skey}{'sum'} += $recipient_count;
-	logger(sprintf($syslogMsg, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "UPDATE"));
+	$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "UPDATE");
+	logger($syslogMsg);
+	syslog(LOG_INFO, $syslogMsg);
 	return "dunno";
 }
 
