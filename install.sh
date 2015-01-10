@@ -12,3 +12,6 @@ chown postfix:postfix /var/log/ratelimit-policyd.log
 chmod 755 daemon.pl init.d/ratelimit-policyd
 ln -sf "$DIR/init.d/ratelimit-policyd" /etc/init.d/
 insserv ratelimit-policyd
+
+# install logrotation configuration
+ln -sf "$DIR/logrotate.d/ratelimit-policyd" /etc/logrotate.d/
