@@ -30,11 +30,12 @@ my $db_tallycol     = 'used';
 my $db_updatedcol   = 'updated';
 my $db_expirycol    = 'expiry';
 my $db_wherecol     = 'sender';
+my $db_persistcol   = 'persist';
 my $deltaconf       = 'daily'; # hourly|daily|weekly|monthly
 my $defaultquota    = 1000;
-my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_expirycol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
+my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_expirycol, $db_persistcol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
 my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
-my $sql_updatereset = "UPDATE $db_table SET $db_tallycol = ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
+my $sql_updatereset = "UPDATE $db_table SET $db_quotacol = ?, $db_tallycol = ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
 my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_expirycol) VALUES (?, ?, ?, ?)";
 ### END OF CONFIGURATION SECTION
 
@@ -248,15 +249,11 @@ sub handle_req {
 		if ($sql_query->rows > 0) {
 			while(@row = $sql_query->fetchrow_array()) {
 				$quotahash{$skey} = &share({});
-				$quotahash{$skey}{'quota'} = $row[0];
-				$quotahash{$skey}{'tally'} = $row[1];
-				$quotahash{$skey}{'sum'} = 0;
-				if ($row[2]) {
-					$quotahash{$skey}{'expire'} = $row[2];
-				} else {
-					#$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
-					$quotahash{$skey}{'expire'} = 0;
-				}
+				$quotahash{$skey}{'quota'}   = $row[0];
+				$quotahash{$skey}{'tally'}   = $row[1];
+				$quotahash{$skey}{'sum'}     = 0;
+				$quotahash{$skey}{'expire'}  = $row[2];
+				$quotahash{$skey}{'persist'} = $row[3];
 				undef @row;
 			}
 			$sql_query->finish();
@@ -278,12 +275,13 @@ sub handle_req {
 	}
 	if ($quotahash{$skey}{'expire'} < time()) {
 		lock($lock);
-		$quotahash{$skey}{'sum'} = 0;
-		$quotahash{$skey}{'tally'} = 0;
+		$quotahash{$skey}{'sum'}    = 0;
+		$quotahash{$skey}{'tally'}  = 0;
 		$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
+		my $newQuota = ($quotahash{$skey}{'persist'}) ? $quotahash{$skey}{'quota'} : $defaultquota;
 		my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
 		my $sql_query = $dbh->prepare($sql_updatereset);
-		$sql_query->execute(0, $quotahash{$skey}{'expire'}, $skey)
+		$sql_query->execute($newQuota, 0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
 	}
 	if ($quotahash{$skey}{'tally'} + $recipient_count > $quotahash{$skey}{'quota'}) {
