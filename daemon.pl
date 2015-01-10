@@ -23,14 +23,15 @@ my $db_passwd       = '************';
 my $db_table        = 'ratelimit';
 my $db_quotacol     = 'quota';
 my $db_tallycol     = 'used';
-my $db_timecol      = 'expiry';
+my $db_updatedcol   = 'updated';
+my $db_expirycol    = 'expiry';
 my $db_wherecol     = 'sender';
 my $deltaconf       = 'daily'; # hourly|daily|weekly|monthly
 my $defaultquota    = 1000;
-my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_timecol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
-my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_timecol = ? WHERE $db_wherecol = ?";
-my $sql_updatereset = "UPDATE $db_table SET $db_tallycol = ?, $db_timecol = ? WHERE $db_wherecol = ?";
-my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_timecol) VALUES (?, ?, ?, ?)";
+my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_expirycol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
+my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
+my $sql_updatereset = "UPDATE $db_table SET $db_tallycol = ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
+my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_expirycol) VALUES (?, ?, ?, ?)";
 ### END OF CONFIGURATION SECTION
 
 $0=join(' ',($0,@ARGV));

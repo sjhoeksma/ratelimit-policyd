@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `ratelimit` (
 	`sender` VARCHAR(255) CHARACTER SET 'utf8' COLLATE 'utf8_bin' NOT NULL,
 	`quota` INT(10) UNSIGNED NOT NULL DEFAULT '0',
 	`used` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	`updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`expiry` INT(10) UNSIGNED DEFAULT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE INDEX `idx_sender` (`sender` ASC))
@@ -28,3 +29,11 @@ COLLATE = utf8_general_ci;
 -- Table `policyd`.`view_ratelimit`
 -- -----------------------------------------------------
 CREATE OR REPLACE VIEW `view_ratelimit` AS SELECT *, FROM_UNIXTIME(`expiry`) AS `expirytime` FROM `ratelimit`;
+
+
+-- -----------------------------------------------------
+-- PATCHES
+-- -----------------------------------------------------
+-- 2015-01-10
+-- ALTER TABLE `ratelimit` ADD `updated` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER `used`;
+-- UPDATE `ratelimit` SET `updated` = NOW();
