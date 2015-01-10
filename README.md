@@ -18,6 +18,21 @@ ratelimit-policyd will never be as feature-rich as other policy daemons. Its mai
 
 **This daemon caches the quota in memory, so you don't need to worry about I/O operations!**
 
+## New Features
+
+The original forked code from [bejelith/send_rate_policyd](https://github.com/bejelith/send_rate_policyd) was improved with the following new features:
+
+- automatically inserts new SASL-users (upon first email sent)
+- Debian default init.d startscript
+- added installer and documentation
+- bugfix: weekly mode did not work (expiry date was not correctly calculated)
+- bugfix: counters did not get reset after expiry
+- additional information in DB: updated timestamp
+- added view_ratelimit in DB to make Unix timestamps human readable (default datetime format)
+- syslog messaging (similar to Postfix-policyd) including all relevant information and counter/quota
+- more detailed logging
+- added logrotation script for /var/log/ratelimit-policyd.log
+- added flag in ratelimit DB table to make specific quotas persistent (all others will get reset to default after expiry)
 
 ## Installation
 
