@@ -10,11 +10,13 @@ This project was forked from [bejelith/send_rate_policyd](https://github.com/bej
 
 ## Purpose
 
-This small Perl daemon limits the number of emails sent by users through your Postfix server, and store message quota in RDMS system (MySQL).
+This small Perl daemon **limits the number of emails** sent by users through your Postfix server, and store message quota in a RDMS system (MySQL). It counts the number of recipients for each sent email. You can setup a send rate per user or sender domain (via SASL username) on **daily/weekly/monthly** basis.
 
 For a long time we were using Postfix-Policyd v1 (the old 1.82) in production instead, but that project was no longer maintained and the successor [PolicyD v2 (codename "cluebringer")](http://wiki.policyd.org/) got overly complex and badly documented. Also, PolicyD seems to have been abandoned since 2013.
 
-With this piece of code you can setup a send rate per users or sender domain (via SASL username) on daily/weekly/monthly basis and store the data in MySQL.
+ratelimit-policyd will never be as feature-rich as other policy daemons. Its main purpose is to limit the number of emails per account, nothing more and nothing less. We focus on performance and simplicity.
+
+**This daemon caches the quota in memory, so you don't need to worry about I/O operations!**
 
 
 ## Installation
@@ -72,7 +74,9 @@ my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_ta
 ### END OF CONFIGURATION SECTION
 ```
 
-Default configuration should be fine. Just don't forget to paste your DB password in ``$db_password``.
+**Take care of using a port higher than 1024 to run the script as non-root (our init script runs it as user "postfix").**
+
+In most cases, the default configuration should be fine. Just don't forget to paste your DB password in ``$db_password``.
 
 Now, start the daemon:
 
@@ -139,4 +143,17 @@ If you're sure that ratelimit-policyd is really running, restart Postfix:
 
 ```
 $ service postfix restart
+```
+
+## Logging
+
+Detailed logging is written to ``/var/log/ratelimit-policyd.log```. In addition, the most important information including the counter status is written to syslog:
+
+```
+$ tail -f /var/log/ratelimit-policyd.log 
+Sat Jan 10 12:08:37 2015 Looking for demo@example.com
+Sat Jan 10 12:08:37 2015 07F452AC009F: client=4-3.2-1.cust.example.com[1.2.3.4], sasl_method=PLAIN, sasl_username=demo@example.com, recipient_count=1, curr_count=6/1000, status=UPDATE
+
+$ grep ratelimit-policyd /var/log/syslog
+Jan 10 12:08:37 mx1 ratelimit-policyd[2552]: 07F452AC009F: client=4-3.2-1.cust.example.com[1.2.3.4], sasl_method=PLAIN, sasl_username=demo@example.com, recipient_count=1, curr_count=6/1000, status=UPDATE
 ```
