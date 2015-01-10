@@ -40,7 +40,7 @@ my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_ta
 
 $0=join(' ',($0,@ARGV));
 
-if($ARGV[0] eq "printshm"){
+if ($ARGV[0] eq "printshm") {
 	my $out = `echo "printshm"|nc $listen_address $port`;
 	print $out;
 	exit(0);
@@ -70,35 +70,35 @@ $SIG{HUP} = \&print_cache;
 while (1) {
 	my $i = 0;
 	my @threads;
-	while($i < $thread_count){
+	while($i < $thread_count) {
 		#$threads[$i] = threads->new(\&start_thr)->detach();
 		threads->new(\&start_thr);
 		logger("Started thead num $i.");
 		$i++;
 	}
-	while(1){
+	while(1) {
 		sleep 5;
 		$cnt++;
 		my $r = 0;
 		my $w = 0;
-		if($cnt % 6 == 0){
+		if ($cnt % 6 == 0) {
 			lock($lock);
 			&commit_cache;
 			&flush_cache;
 			logger("Master: cache committed and flushed");
 		}
-		while (my ($k, $v) = each(%scoreboard)){
-			if($v eq 'running'){
+		while (my ($k, $v) = each(%scoreboard)) {
+			if ($v eq 'running') {
 				$r++;
-			}else{
+			} else {
 				$w++;
 			}
 		}
-		if($r/($r + $w) > 0.9){
+		if ($r/($r + $w) > 0.9) {
 			threads->new(\&start_thr);
 			logger("New thread started");
 		}
-		if($cnt % 150 == 0){
+		if ($cnt % 150 == 0) {
 			logger("STATS: threads running: $r, threads waiting $w.");
 		}
 	}
@@ -112,13 +112,13 @@ sub start_thr {
 	my $client_ipnum;
 	my $client_ip;
 	my $client;
-	while(1){
+	while(1) {
 		$scoreboard{$threadid} = 'waiting';
 		$semaphore->down();#TODO move to non-block
 		$client_addr = accept($client, SERVER);
 		$semaphore->up();
 		$scoreboard{$threadid} = 'running';
-		if(!$client_addr){
+		if (!$client_addr) {
 			logger("TID: $threadid accept() failed with: $!");
 			next;
 		}	
@@ -129,51 +129,51 @@ sub start_thr {
 		select($client);
 		$|=1;
 	
-		if(grep $_ eq $client_ipnum, @allowedhosts){
+		if (grep $_ eq $client_ipnum, @allowedhosts) {
 			#my $client_host = gethostbyaddr($client_ip, AF_INET);
 			#if (! defined ($client_host)) { $client_host=$client_ipnum;}
 			my $message;
 			my @buf;
 			while(!eof($client)) {
 				$message = <$client>;
-				if($message =~ m/printshm/){
+				if ($message =~ m/printshm/) {
 					my $r=0;
 					my $w =0;
 					print $client "Printing shm:\r\n";
 					print $client "Domain\t\t:\tQuota\t:\tUsed\t:\tExpire\r\n";
-					while(($k,$v) = each(%quotahash)){
+					while(($k,$v) = each(%quotahash)) {
 						chomp(my $exp = ctime($quotahash{$k}{'expire'}));
 						print $client "$k\t:\t".$quotahash{$k}{'quota'}."\t:\t $quotahash{$k}{'tally'}\t:\t$exp\r\n";
 					}
-					while (my ($k, $v) = each(%scoreboard)){
-						if($v eq 'running'){
+					while (my ($k, $v) = each(%scoreboard)) {
+						if ($v eq 'running') {
 							$r++;
-						}else{
+						} else {
 							$w++;
 						}
 					}
 					print $client "Threads running: $r, Threads waiting: $w\r\n";
 					last;
-				}elsif($message =~ m/=/){
+				} elsif ($message =~ m/=/) {
 					push(@buf, $message);
 					next;
-				}elsif($message == "\r\n"){
+				} elsif ($message == "\r\n") {
 					#logger("Handle new request");
 					my $ret = &handle_req(@buf);
-					if($ret =~ m/unknown/){
+					if ($ret =~ m/unknown/) {
 						last;
 					#New thread model - old code
 					#	shutdown($client,2);
 					#??	threads->exit(0);
-					}else{
+					} else {
 						print $client "action=$ret\n\n";
 					}
 					@buf = ();
-				}else{
+				} else {
 					print $client "message not understood\r\n";
 				}
 			}
-		}else{
+		} else {
 			logger("Client $client_ipnum connection not allowed.");
 		}
 		shutdown($client,2);
@@ -194,11 +194,11 @@ sub handle_req {
 	my $client_address;
 	my $client_name;
 	local $/ = "\n";
-	foreach $aline(@buf){
+	foreach $aline(@buf) {
 		my @line = split("=", $aline);
 		chomp(@line);
 		#logger("DEBUG ". $line[0] ."=". $line[1]);
-		switch($line[0]){
+		switch($line[0]) {
 			case "protocol_state" { 
 				chomp($protocol_state = $line[1]);
 			}
@@ -223,37 +223,37 @@ sub handle_req {
 		}
 	}
 
-	if($protocol_state !~ m/DATA/ || $sasl_username eq "" ){
+	if ($protocol_state !~ m/DATA/ || $sasl_username eq "" ) {
 		return "ok";
 	}
 	
 	my $skey = '';
-	if($s_key_type eq 'domain'){
+	if ($s_key_type eq 'domain') {
 		$skey = (split("@", $sasl_username))[1];
-	}else{
+	} else {
 		$skey = $sasl_username;
 	}
 
 	my $syslogMsg;
 	my $syslogMsgTpl = sprintf("%s: client=%s[%s], sasl_method=%s, sasl_username=%s, recipient_count=%s, curr_count=%%s/%%s, status=%%s",
-	                        $queue_id, $client_name, $client_address, $sasl_method, $sasl_username, $recipient_count);
+	                           $queue_id, $client_name, $client_address, $sasl_method, $sasl_username, $recipient_count);
 
 	#TODO: Maybe i should move to semaphore!!!
 	lock($lock);
-	if(!exists($quotahash{$skey})){
+	if (!exists($quotahash{$skey})) {
 		logger("Looking for $skey");
 		my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
 		my $sql_query = $dbh->prepare($sql_getquota);
 		$sql_query->execute($skey);
-		if($sql_query->rows > 0){
-			while(@row = $sql_query->fetchrow_array()){
+		if ($sql_query->rows > 0) {
+			while(@row = $sql_query->fetchrow_array()) {
 				$quotahash{$skey} = &share({});
 				$quotahash{$skey}{'quota'} = $row[0];
 				$quotahash{$skey}{'tally'} = $row[1];
 				$quotahash{$skey}{'sum'} = 0;
-				if($row[2]){
+				if ($row[2]) {
 					$quotahash{$skey}{'expire'} = $row[2];
-				}else{
+				} else {
 					#$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
 					$quotahash{$skey}{'expire'} = 0;
 				}
@@ -261,7 +261,7 @@ sub handle_req {
 			}
 			$sql_query->finish();
 			$dbh->disconnect;
-		}else{
+		} else {
 			$sql_query->finish();
 			my $expire = calcexpire($deltaconf);
 			$sql_query = $dbh->prepare($sql_insertquota);
@@ -276,7 +276,7 @@ sub handle_req {
 			return "dunno";
 		}
 	}
-	if($quotahash{$skey}{'expire'} < time() ){
+	if ($quotahash{$skey}{'expire'} < time()) {
 		lock($lock);
 		$quotahash{$skey}{'sum'} = 0;
 		$quotahash{$skey}{'tally'} = 0;
@@ -286,7 +286,7 @@ sub handle_req {
 		$sql_query->execute(0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
 	}
-	if($quotahash{$skey}{'tally'} + $recipient_count > $quotahash{$skey}{'quota'}){
+	if ($quotahash{$skey}{'tally'} + $recipient_count > $quotahash{$skey}{'quota'}) {
 		$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'} + $recipient_count, $quotahash{$skey}{'quota'}, "OVER_QUOTA");
 		logger($syslogMsg);
 		syslog(LOG_WARNING, $syslogMsg);
@@ -312,7 +312,7 @@ sub commit_cache {
 	my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
 	my $sql_query = $dbh->prepare($sql_updatequota);
 	#lock($lock); -- lock at upper level
-	while(($k,$v) = each(%quotahash)){
+	while(($k,$v) = each(%quotahash)) {
 		$sql_query->execute($quotahash{$k}{'sum'}, $quotahash{$k}{'expire'}, $k)
 			or logger("Query error:".$sql_query->errstr);
 		$quotahash{$k}{'sum'} = 0;
@@ -322,13 +322,13 @@ sub commit_cache {
 
 sub flush_cache {
 	lock($lock);
-	foreach $k(keys %quotahash){
+	foreach $k(keys %quotahash) {
 		delete $quotahash{$k};
 	}
 }
 
 sub print_cache {
-	foreach $k(keys %quotahash){
+	foreach $k(keys %quotahash) {
         logger("$k: $quotahash{$k}{'quota'}, $quotahash{$k}{'tally'}");
     }
 }
@@ -356,9 +356,9 @@ sub daemonize {
 	#$ENV{PATH}="/bin:/usr/bin";
 	#chdir("/");
 	close STDIN;
-	if(!defined(my $pid=fork())){
+	if (!defined(my $pid=fork())) {
 		die "Impossible to fork\n";
-	}elsif($pid >0){
+	} elsif ($pid >0) {
 		exit 0;
 	}
 	setsid();
@@ -373,21 +373,21 @@ sub daemonize {
 	umask $mask;
 }
 
-sub calcexpire{
-        my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-        my ($arg) = @_;
-        if($arg eq 'monthly'){
-                $exp = mktime (0, 0, 0, 1, ++$mon, $year);
-        }elsif($arg eq 'weekly'){
-                $exp = mktime (0, 0, 0, $mday+7-$wday, $mon, $year);
-        }elsif($arg eq 'daily'){
-                $exp = mktime (0, 0, 0, ++$mday, $mon, $year);
-        }elsif($arg eq 'hourly'){
-                $exp = mktime (0, $min, ++$hour, $mday, $mon, $year);
-        }else{
-                $exp = mktime (0, 0, 0, 1, ++$mon, $year);
-        }
-        return $exp;
+sub calcexpire {
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+	my ($arg) = @_;
+	if ($arg eq 'monthly') {
+		$exp = mktime (0, 0, 0, 1, ++$mon, $year);
+	} elsif ($arg eq 'weekly') {
+		$exp = mktime (0, 0, 0, $mday+7-$wday, $mon, $year);
+	} elsif ($arg eq 'daily') {
+		$exp = mktime (0, 0, 0, ++$mday, $mon, $year);
+	} elsif ($arg eq 'hourly') {
+		$exp = mktime (0, $min, ++$hour, $mday, $mon, $year);
+	} else {
+		$exp = mktime (0, 0, 0, 1, ++$mon, $year);
+	}
+	return $exp;
 }
 
 sub logger {
