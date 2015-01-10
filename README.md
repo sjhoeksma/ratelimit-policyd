@@ -2,6 +2,8 @@
 
 A Sender rate limit policy daemon for Postfix.
 
+Copyright (c) Onlime Webhosting (http://www.onlime.ch)
+
 ## Credits
 
 This project was forked from [bejelith/send_rate_policyd](https://github.com/bejelith/send_rate_policyd). All credits go to [Simone Caruso](http://www.simonecaruso.com).
