@@ -33,6 +33,7 @@ The original forked code from [bejelith/send_rate_policyd](https://github.com/be
 - more detailed logging
 - added logrotation script for /var/log/ratelimit-policyd.log
 - added flag in ratelimit DB table to make specific quotas persistent (all others will get reset to default after expiry)
+- continue raising counter even in over quota state
 
 ## Installation
 
