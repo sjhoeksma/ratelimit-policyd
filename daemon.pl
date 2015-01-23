@@ -309,7 +309,7 @@ sub sigterm_handler {
 }
 
 sub get_db_handler {
-	my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
+	my $dbh = DBI->connect($dsn, $db_user, $db_passwd, {PrintError => 0});
 	if (!defined($dbh)) {
 		my $syslogMsg = sprintf("DB connection error (%s): %s", $DBI::err, $DBI::errstr);
 		logger($syslogMsg);
