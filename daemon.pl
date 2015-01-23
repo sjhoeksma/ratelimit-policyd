@@ -243,7 +243,8 @@ sub handle_req {
 	lock($lock);
 	if (!exists($quotahash{$skey})) {
 		logger("Looking for $skey");
-		my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
+		my $dbh = get_db_handler()
+			or return "dunno";;
 		my $sql_query = $dbh->prepare($sql_getquota);
 		$sql_query->execute($skey);
 		if ($sql_query->rows > 0) {
@@ -279,7 +280,8 @@ sub handle_req {
 		$quotahash{$skey}{'tally'}  = 0;
 		$quotahash{$skey}{'expire'} = calcexpire($deltaconf);
 		my $newQuota = ($quotahash{$skey}{'persist'}) ? $quotahash{$skey}{'quota'} : $defaultquota;
-		my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
+		my $dbh = get_db_handler()
+			or return "dunno";;
 		my $sql_query = $dbh->prepare($sql_updatereset);
 		$sql_query->execute($newQuota, 0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
@@ -306,8 +308,19 @@ sub sigterm_handler {
 	exit(0);
 }
 
-sub commit_cache {
+sub get_db_handler {
 	my $dbh = DBI->connect($dsn, $db_user, $db_passwd);
+	if (!defined($dbh)) {
+		my $syslogMsg = sprintf("DB connection error (%s): %s", $DBI::err, $DBI::errstr);
+		logger($syslogMsg);
+		syslog(LOG_ERR, $syslogMsg);
+	}
+	return $dbh;
+}
+
+sub commit_cache {
+	my $dbh = get_db_handler()
+		or return undef;
 	my $sql_query = $dbh->prepare($sql_updatequota);
 	#lock($lock); -- lock at upper level
 	while(($k,$v) = each(%quotahash)) {
