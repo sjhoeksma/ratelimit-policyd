@@ -286,17 +286,19 @@ sub handle_req {
 		$sql_query->execute($newQuota, 0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
 	}
-	$quotahash{$skey}{'tally'} += $recipient_count;
-	$quotahash{$skey}{'sum'}   += $recipient_count;
-	if ($quotahash{$skey}{'tally'} > $quotahash{$skey}{'quota'}) {
+
+	if (($quotahash{$skey}{'tally'} + $recipient_count) > $quotahash{$skey}{'quota'}) {
 		$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "OVER_QUOTA");
 		logger($syslogMsg);
 		syslog(LOG_WARNING, $syslogMsg);
 		return "471 $deltaconf message quota exceeded"; 
-	}
+	} else {
+	$quotahash{$skey}{'tally'} += $recipient_count;
+	$quotahash{$skey}{'sum'}   += $recipient_count;
 	$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "UPDATE");
 	logger($syslogMsg);
 	syslog(LOG_INFO, $syslogMsg);
+	}
 	return "dunno";
 }
 
