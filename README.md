@@ -43,7 +43,7 @@ Recommended installation:
 
 ```bash
 $ cd /opt/
-$ git clone https://github.com/onlime/ratelimit-policyd.git ratelimit-policyd
+$ git clone https://github.com/sjhoeksma/ratelimit-policyd.git ratelimit-policyd
 $ cd ratelimit-policyd
 $ chmod +x install.sh
 $ ./install.sh
