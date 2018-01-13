@@ -11,7 +11,7 @@ use File::Basename;
 my $semaphore = new Thread::Semaphore;
 
 ### CONFIGURATION SECTION
-my @allowedhosts    = ('127.0.0.1', '10.0.0.1');
+my @allowedhosts    = ('127.0.0.1', '10.0.0.100');
 my $LOGFILE         = "/var/log/ratelimit-policyd.log";
 my $PIDFILE         = "/var/run/ratelimit-policyd.pid";
 my $SYSLOG_IDENT    = "ratelimit-policyd";
@@ -23,7 +23,7 @@ my $listen_address  = '127.0.0.1'; # or '0.0.0.0'
 my $s_key_type      = 'email'; # domain or email
 my $dsn             = "DBI:mysql:policyd:127.0.0.1";
 my $db_user         = 'policyd';
-my $db_passwd       = '************';
+my $db_passwd       = '**********';
 my $db_table        = 'ratelimit';
 my $db_quotacol     = 'quota';
 my $db_tallycol     = 'used';
@@ -31,12 +31,14 @@ my $db_updatedcol   = 'updated';
 my $db_expirycol    = 'expiry';
 my $db_wherecol     = 'sender';
 my $db_persistcol   = 'persist';
-my $deltaconf       = 'daily'; # hourly|daily|weekly|monthly
-my $defaultquota    = 1000;
+my $deltaconf       = 'hourly'; # hourly|daily|weekly|monthly
+my $defaultquota    = 45;
 my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_expirycol, $db_persistcol FROM $db_table WHERE $db_wherecol = ? AND $db_quotacol > 0";
 my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
 my $sql_updatereset = "UPDATE $db_table SET $db_quotacol = ?, $db_tallycol = ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
 my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_expirycol) VALUES (?, ?, ?, ?)";
+#my $sql_ispconfig = "UPDATE dbispconfig.mail_user SET disablesmtp = 'y' WHERE email = ?";
+my $sql_ispconfig = "";
 ### END OF CONFIGURATION SECTION
 
 $0=join(' ',($0,@ARGV));
@@ -86,7 +88,7 @@ while (1) {
 			lock($lock);
 			&commit_cache;
 			&flush_cache;
-			logger("Master: cache committed and flushed");
+			#logger("Master: cache committed and flushed");
 		}
 		while (my ($k, $v) = each(%scoreboard)) {
 			if ($v eq 'running') {
@@ -97,7 +99,7 @@ while (1) {
 		}
 		if ($r/($r + $w) > 0.9) {
 			threads->new(\&start_thr);
-			logger("New thread started");
+			#logger("New thread started");
 		}
 		if ($cnt % 150 == 0) {
 			logger("STATS: threads running: $r, threads waiting $w.");
@@ -161,7 +163,7 @@ sub start_thr {
 				} elsif ($message == "\r\n") {
 					#logger("Handle new request");
 					my $ret = &handle_req(@buf);
-					if ($ret =~ m/unknown/) {
+						if ($ret =~ m/unknown/) {
 						last;
 					#New thread model - old code
 					#	shutdown($client,2);
@@ -285,6 +287,7 @@ sub handle_req {
 		my $sql_query = $dbh->prepare($sql_updatereset);
 		$sql_query->execute($newQuota, 0, $quotahash{$skey}{'expire'}, $skey)
 			or logger("Query error: ". $sql_query->errstr);
+                $dbh->disconnect;
 	}
 	$quotahash{$skey}{'tally'} += $recipient_count;
 	$quotahash{$skey}{'sum'}   += $recipient_count;
@@ -292,6 +295,14 @@ sub handle_req {
 		$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "OVER_QUOTA");
 		logger($syslogMsg);
 		syslog(LOG_WARNING, $syslogMsg);
+                if ($sql_ispconfig!="") {
+                  my $dbh = get_db_handler()
+			or  return "471 $deltaconf message quota exceeded";			
+                  my $sql_query = $dbh->prepare($sql_ispconfig);
+                  $sql_query->execute($skey)
+			or logger("Query error: ". $sql_query->errstr);
+		  $dbh->disconnect;
+                }
 		return "471 $deltaconf message quota exceeded"; 
 	}
 	$syslogMsg = sprintf($syslogMsgTpl, $quotahash{$skey}{'tally'}, $quotahash{$skey}{'quota'}, "UPDATE");
