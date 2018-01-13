@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# chkconfig: 2345 80 30
+
 ### BEGIN INIT INFO
 # Provides:          ratelimit-policyd
 # Required-Start:    $all
