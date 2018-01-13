@@ -72,7 +72,7 @@ $ mysql -u root -p < mysql-schema.sql
 GRANT USAGE ON *.* TO policyd@'localhost' IDENTIFIED BY '********';
 GRANT SELECT, INSERT, UPDATE, DELETE ON policyd.* TO policyd@'localhost';
 # when using ispconfig
-GRANT UPDATE  ON dbispconfig.mail_user TO policyd@'localhost';
+GRANT SELECT, UPDATE  ON dbispconfig.mail_user TO policyd@'localhost';
 ```
 
 Adjust configuration options in ```daemon.pl```:
