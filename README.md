@@ -164,7 +164,7 @@ sample configuration (using ratelimitpolicyd as alias as smtpd_data_restrictions
 smtpd_restriction_classes = ratelimitpolicyd
 ratelimitpolicyd = check_policy_service inet:127.0.0.1:10032
 
-smtpd_data_restrictions = ratelimitpolicyd, permit
+smtpd_data_restrictions = ratelimitpolicyd, reject_unauth_pipelining, permit
 ```
 
 If you're sure that ratelimit-policyd is really running, restart Postfix:
