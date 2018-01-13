@@ -71,6 +71,8 @@ $ mysql -u root -p < mysql-schema.sql
 ```sql
 GRANT USAGE ON *.* TO policyd@'localhost' IDENTIFIED BY '********';
 GRANT SELECT, INSERT, UPDATE, DELETE ON policyd.* TO policyd@'localhost';
+# when using ispconfig
+GRANT UPDATE  ON dbispconfig.mail_user TO policyd@'localhost';
 ```
 
 Adjust configuration options in ```daemon.pl```:
@@ -102,6 +104,7 @@ my $sql_getquota    = "SELECT $db_quotacol, $db_tallycol, $db_expirycol FROM $db
 my $sql_updatequota = "UPDATE $db_table SET $db_tallycol = $db_tallycol + ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
 my $sql_updatereset = "UPDATE $db_table SET $db_tallycol = ?, $db_updatedcol = NOW(), $db_expirycol = ? WHERE $db_wherecol = ?";
 my $sql_insertquota = "INSERT INTO $db_table ($db_wherecol, $db_quotacol, $db_tallycol, $db_expirycol) VALUES (?, ?, ?, ?)";
+my $sql_ispconfig = "UPDATE dbispconfig.mail_user SET disablesmtp = 'y' WHERE email = ?";
 ### END OF CONFIGURATION SECTION
 ```
 
