@@ -1,4 +1,4 @@
-# ratelimit-policyd
+# ratelimit-policyd, cloned for Centos
 
 A Sender rate limit policy daemon for Postfix.
 
