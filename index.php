@@ -1,22 +1,19 @@
 <?php
-//Page to view state of services combining table ispconfig and policy db
 $db_host = 'localhost'; // Server Name
 $db_user = 'policyd'; // Username
-$db_pass = '********'; // Password
+$db_pass = '*******'; // Password
 $db_name = 'policyd'; // Database Name
-
-// CREATE OR REPLACE VIEW `view_ratelimitlock` AS 
-//SELECT dbispconfig.mail_user.email, dbispconfig.mail_user.disablesmtp ,ratelimit.quota, 
-//ratelimit.used, ratelimit.updated , FROM_UNIXTIME(expiry) AS expirytime FROM ratelimit RIGHT JOIN dbispconfig.mail_user on 
-//ratelimit.sender=dbispconfig.mail_user.email;
 
 $conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 if (!$conn) {
 	die ('Failed to connect to MySQL: ' . mysqli_connect_error());	
 }
 
-$sql = 'SELECT * 
-		FROM view_ratelimitlock';
+$sql = 'SELECT dbispconfig.mail_user.email, dbispconfig.mail_user.disablesmtp ,ratelimit.quota,
+        ratelimit.used, ratelimit.updated , FROM_UNIXTIME(expiry) AS expirytime FROM ratelimit LEFT JOIN dbispconfig.mail_user on
+        ratelimit.sender=dbispconfig.mail_user.email
+        WHERE disablesmtp="y" or FROM_UNIXTIME(expiry)>=CURRENT_TIMESTAMP() 
+        ORDER BY disablesmtp DESC, expirytime DESC';
 		
 $query = mysqli_query($conn, $sql);
 
@@ -103,7 +100,7 @@ if (!$query) {
 		.data-table tfoot th:first-child {
 			text-align: left;
 		}
-		.data-table tbody td:empty
+		.data-table tbody tr.higlight  td ,  .data-table tbody tr:nth-child(odd).highlight td
 		{
 			background-color: #ffcccc;
 		}
@@ -126,13 +123,13 @@ if (!$query) {
 		<?php
 		while ($row = mysqli_fetch_array($query))
 		{
-			echo '<tr>
+			echo '<tr'. ($row['disablesmtp']=='y' ? ' class="highlight"' : '') .'>
 					<td>'.$row['email'].'</td>
 				    <td>'.$row['disablesmtp'].'</td>
 					<td>'.$row['quota'].'</td>
 					<td>'.$row['used'].'</td>
-					<td>'. date('F d, Y', strtotime($row['updated'])) . '</td>
-					<td>'. date('F d, Y G:H:s', strtotime($row['expirytime'])) . '</td>
+					<td>'. date('F d, Y G:H', strtotime($row['updated'])) . '</td>
+					<td>'. date('F d, Y G:H', strtotime($row['expirytime'])) . '</td>
 				</tr>';
 		}?>
 		</tbody>
